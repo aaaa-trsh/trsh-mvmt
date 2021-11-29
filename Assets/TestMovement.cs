@@ -59,6 +59,7 @@ public class TestMovement : MonoBehaviour
     void EnableWallrun() { wallrunEnabled = true; }
 
     void Update() {
+        look.SetTargetHeight(u.crouchInput ? .4f : 1f);
         if (u.WallCheck() && canWallrun) {
             if (!wallrunning) {
                 u.JumpReset();
