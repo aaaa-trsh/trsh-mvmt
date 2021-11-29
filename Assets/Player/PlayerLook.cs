@@ -29,7 +29,7 @@ public class PlayerLook : MonoBehaviour
         cameraRig.localRotation = Quaternion.Slerp(
             cameraRig.localRotation,
             Quaternion.Euler(new Vector3(xRotation, cameraRig.localRotation.eulerAngles.y, targetDutch)),
-            Time.deltaTime * 15f
+            Time.deltaTime * 7f
         );
         cameraRig.localPosition = new Vector3(cameraRig.localPosition.x, Mathf.Lerp(cameraRig.localPosition.y, targetHeight, Time.deltaTime * 15f), cameraRig.localPosition.z);
         transform.Rotate(Vector3.up * mouseX);
