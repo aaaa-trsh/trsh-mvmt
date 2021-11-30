@@ -125,7 +125,7 @@ public class TestMovement : MonoBehaviour
 
         rb.velocity = rb.velocity + add_speed * wish;
         // rb.AddForce(-Vector3.up * (u.crouchInput && u.grounded ? 60 : 20), ForceMode.Acceleration);
-        rb.AddForce(-Vector3.up * 20, ForceMode.Acceleration);
+        rb.AddForce(-Vector3.up * 1100 * Time.deltaTime, ForceMode.Acceleration);
         slideTime += Time.deltaTime;
     }
 }
