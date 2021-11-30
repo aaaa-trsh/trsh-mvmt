@@ -47,13 +47,13 @@ public class TestMovement : MonoBehaviour
 
         if (wallrunning) {
             canWallrun = false;
-            Vector3 wallDir = Vector3.Cross(u.wallHit.normal, Vector3.up) * u.dirInput.y;
-            float wallSide = Vector3.Dot(wallDir, (transform.forward * u.signedDirInput.y + transform.right * u.signedDirInput.x).normalized);
-            Vector3 newVel = (u.wallHit.normal * 5 + wallDir * wallrunSpeed * wallSide).normalized * wallrunSpeed;
+            Vector3 wallDir = Vector3.Cross(u.wallHit.normal, Vector3.up);
+            float wallSide = Vector3.Dot(wallDir, (transform.forward * Mathf.Sign(u.signedDirInput.y) + transform.right * u.signedDirInput.x).normalized);
+            Vector3 newVel = wallDir.normalized * (wallrunSpeed - 5) * wallSide + u.wallHit.normal * 5;
 
-            Debug.Log(Vector3.Dot(u.wallHit.normal, transform.forward));
             if (Vector3.Dot(u.wallHit.normal, transform.forward) < -0.7f) {
-                newVel = u.wallHit.normal * wallrunSpeed/2;
+                Debug.Log("away!");
+                newVel = u.wallHit.normal * 4f;
             }
             newVel.y = jumpForce;
             rb.velocity = newVel;
@@ -75,7 +75,7 @@ public class TestMovement : MonoBehaviour
                 wallrunSpeed = Mathf.Max(u.xzVelocity().magnitude, 13f);
                 rb.velocity = new Vector3(rb.velocity.x, 3f, rb.velocity.z);
             }
-            if (wallrunningTime > wallrunningDuration || Input.GetKeyDown(KeyCode.LeftControl) || u.smoothDirInput.magnitude == 0) {
+            if (wallrunningTime > wallrunningDuration || Input.GetKeyDown(KeyCode.LeftControl)) {
                 canWallrun = false;
                 wallrunEnabled = false;
                 Invoke("EnableWallrun", .3f);
@@ -89,7 +89,7 @@ public class TestMovement : MonoBehaviour
                 return;
             }
             Vector3 wallDir = Vector3.Cross(u.wallHit.normal, Vector3.up);
-            float wallSide = Vector3.Dot(wallDir, (transform.forward * u.signedDirInput.y + transform.right * u.signedDirInput.x).normalized);
+            float wallSide = Vector3.Dot(wallDir, (transform.forward * Mathf.Sign(u.signedDirInput.y) + transform.right * u.signedDirInput.x).normalized);
             Vector3 wallrunVelocity = (wallDir * wallrunSpeed * wallSide - (u.wallHit.normal * 300 * Time.deltaTime * Vector3.Distance(transform.position-(u.wallHit.normal*u.capsuleCollider.radius), u.wallHit.point)));
             wallrunVelocity.y = rb.velocity.y;
             rb.velocity = wallrunVelocity;
@@ -107,7 +107,7 @@ public class TestMovement : MonoBehaviour
             look.SetTargetDutch(0);
         }
 
-        canWallrun = u.WallCheck() && oldWallrunningNormal != u.wallHit.normal && oldWallrunningHeight > u.wallHit.point.y && u.dirInput.magnitude != 0 && wallrunEnabled && !Input.GetKey(KeyCode.LeftControl); 
+        canWallrun = u.WallCheck() && oldWallrunningNormal != u.wallHit.normal && oldWallrunningHeight > u.wallHit.point.y && wallrunEnabled && !Input.GetKey(KeyCode.LeftControl); 
 
         u.onJump -= Jump;
         u.onJump += Jump;
