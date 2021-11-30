@@ -1953,8 +1953,8 @@ RectTransform:
   m_Father: {fileID: 1027040074}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
+  m_AnchorMin: {x: 0.5, y: 0}
+  m_AnchorMax: {x: 0.5, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 5, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
@@ -2769,7 +2769,7 @@ MonoBehaviour:
     ModeOverride: 0
     LensShift: {x: 0, y: 0}
     GateFit: 2
-    m_SensorSize: {x: 1.7777778, y: 1}
+    m_SensorSize: {x: 1.7497005, y: 1}
     Iso: 200
     ShutterSpeed: 0.005
     Aperture: 16
@@ -3702,6 +3702,11 @@ MonoBehaviour:
   type: 0
   key: crouch_mode
   uiObject: {fileID: 737479749}
+  defaultValue:
+    type: 0
+    intValue: 0
+    floatValue: 0
+    stringValue: 
 --- !u!114 &737479749
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7132,7 +7137,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1036366875
 RectTransform:
   m_ObjectHideFlags: 0
@@ -8475,7 +8480,7 @@ MonoBehaviour:
     ModeOverride: 0
     LensShift: {x: 0, y: 0}
     GateFit: 2
-    m_SensorSize: {x: 1.7777778, y: 1}
+    m_SensorSize: {x: 1.7497005, y: 1}
     Iso: 200
     ShutterSpeed: 0.005
     Aperture: 16
@@ -12024,7 +12029,7 @@ MonoBehaviour:
   m_MinValue: 0
   m_MaxValue: 200
   m_WholeNumbers: 1
-  m_Value: 50
+  m_Value: 100
   m_OnValueChanged:
     m_PersistentCalls:
       m_Calls:
@@ -12055,6 +12060,11 @@ MonoBehaviour:
   type: 1
   key: sens
   uiObject: {fileID: 1884113420}
+  defaultValue:
+    type: 1
+    intValue: 0
+    floatValue: 100
+    stringValue: 
 --- !u!1 &1885124801
 GameObject:
   m_ObjectHideFlags: 0
@@ -13275,7 +13285,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &2063066442
 RectTransform:
   m_ObjectHideFlags: 0
@@ -13560,13 +13570,13 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-      - m_Target: {fileID: 1406399879}
-        m_TargetAssemblyTypeName: UnityEngine.GameObject, UnityEngine
-        m_MethodName: 
+      - m_Target: {fileID: 1406399886}
+        m_TargetAssemblyTypeName: PauseManager, Assembly-CSharp
+        m_MethodName: Unpause
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: 
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
           m_IntArgument: 0
           m_FloatArgument: 0
           m_StringArgument: 

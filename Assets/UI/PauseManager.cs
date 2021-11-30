@@ -25,15 +25,15 @@ public class PauseManager : MonoBehaviour
         }
     }
     
-    void Pause() {
+    public void Pause() {
         Time.timeScale = 0;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
         pauseMenu.SetActive(true);
         paused = true;
     }
-
-    void Unpause() {
+ 
+    public void Unpause() {
         Time.timeScale = 1;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;

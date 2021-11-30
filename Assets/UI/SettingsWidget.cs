@@ -9,14 +9,32 @@ public enum SettingType {
     Float,
     String
 }
+[System.Serializable]
+public class SettingValue {
+    public SettingType type;
+    // value based on type
+    public int intValue;
+    public float floatValue;
+    public string stringValue;
+}
 public class SettingsWidget : MonoBehaviour
 {
     public SettingType type;
     public string key;
     public MonoBehaviour uiObject;
+    public SettingValue defaultValue;
 
     public void Start() {
-        Debug.Log(uiObject.GetType().ToString());
+        // set default value if no key found
+        if (PlayerPrefs.HasKey(key) == false) {
+            if (type == SettingType.Int) {
+                PlayerPrefs.SetInt(key, defaultValue.intValue);
+            } else if (type == SettingType.Float) {
+                PlayerPrefs.SetFloat(key, defaultValue.floatValue);
+            } else if (type == SettingType.String) {
+                PlayerPrefs.SetString(key, defaultValue.stringValue);
+            }
+        }
         switch (uiObject.GetType().ToString())
         {
             case "UnityEngine.UI.Slider":

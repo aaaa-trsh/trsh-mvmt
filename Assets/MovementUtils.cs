@@ -17,6 +17,9 @@ public class MovementUtils : MonoBehaviour
     public bool grounded { get; private set; }
     public bool jumpInput { get; private set; }
     public Vector2 dirInput { get; private set; }
+    public Vector2 smoothDirInput { get; private set; }
+    public Vector2 signedDirInput { get; private set; }
+    private Vector2 prevDirInput;
     public bool canJump { get; private set; }
     public bool canDoubleJump { get; private set; }
 
@@ -41,6 +44,11 @@ public class MovementUtils : MonoBehaviour
 
     void Update() {
         dirInput = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical")).normalized;
+        smoothDirInput = Vector2.Lerp(smoothDirInput, dirInput, Time.deltaTime * 10);
+        if (dirInput.magnitude > 0) {
+            prevDirInput = dirInput;
+        }
+        signedDirInput = Vector3.Lerp(signedDirInput, prevDirInput, 10 * Time.deltaTime);
         
         if (PlayerPrefs.GetInt("crouch_mode") == 0 != holdCrouchInput)
             holdCrouchInput = PlayerPrefs.GetInt("crouch_mode") == 0;

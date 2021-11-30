@@ -19,8 +19,9 @@ public class TestMovement : MonoBehaviour
     private float wallrunningTime = 0;
     private float wallrunningDuration = 3;
     private Vector3 oldWallrunningNormal = Vector3.zero;
+    private float oldWallrunningHeight = Mathf.Infinity;
     private PlayerLook look;
-
+    
     void Start() {
         rb = GetComponent<Rigidbody>();
         look = GetComponent<PlayerLook>();
@@ -28,6 +29,7 @@ public class TestMovement : MonoBehaviour
         u.onJump += Jump;
         u.onEnterGround += () => {
             oldWallrunningNormal = Vector3.zero;
+            oldWallrunningHeight = Mathf.Infinity;
         };
 
         u.onCrouchInput += () => {
@@ -45,18 +47,23 @@ public class TestMovement : MonoBehaviour
 
         if (wallrunning) {
             canWallrun = false;
-            // Debug.Log("Walljump");
-            Vector3 newVel = (u.wallHit.normal * 5 + transform.forward * wallrunSpeed).normalized * wallrunSpeed;
+            Vector3 wallDir = Vector3.Cross(u.wallHit.normal, Vector3.up) * u.dirInput.y;
+            float wallSide = Vector3.Dot(wallDir, (transform.forward * u.signedDirInput.y + transform.right * u.signedDirInput.x).normalized);
+            Vector3 newVel = (u.wallHit.normal * 5 + wallDir * wallrunSpeed * wallSide).normalized * wallrunSpeed;
+
+            Debug.Log(Vector3.Dot(u.wallHit.normal, transform.forward));
+            if (Vector3.Dot(u.wallHit.normal, transform.forward) < -0.7f) {
+                newVel = u.wallHit.normal * wallrunSpeed/2;
+            }
             newVel.y = jumpForce;
             rb.velocity = newVel;
-            // Invoke("EnableWallrun", .3f);
         }
         else {
             oldWallrunningNormal = Vector3.zero;
         }
     }
 
-    void EnableWallrun() { wallrunEnabled = true; }
+    void EnableWallrun() { wallrunEnabled = true; u.onEnterGround -= EnableWallrun; }
 
     void Update() {
         look.SetTargetHeight(u.crouchInput ? .4f : 1f);
@@ -66,23 +73,32 @@ public class TestMovement : MonoBehaviour
                 wallrunning = true;
                 wallrunningTime = 0;
                 wallrunSpeed = Mathf.Max(u.xzVelocity().magnitude, 13f);
+                rb.velocity = new Vector3(rb.velocity.x, 3f, rb.velocity.z);
             }
-            if (wallrunningTime > wallrunningDuration || Input.GetKey(KeyCode.LeftControl)) {
+            if (wallrunningTime > wallrunningDuration || Input.GetKeyDown(KeyCode.LeftControl) || u.smoothDirInput.magnitude == 0) {
                 canWallrun = false;
+                wallrunEnabled = false;
+                Invoke("EnableWallrun", .3f);
+
+                // if (!Input.GetKeyDown(KeyCode.LeftControl))
+                //     Invoke("EnableWallrun", .3f);
+                // else
+                //     u.onEnterGround += EnableWallrun;
                 rb.velocity += u.wallHit.normal * 2;
+                oldWallrunningHeight -= 0.1f;
                 return;
             }
-
             Vector3 wallDir = Vector3.Cross(u.wallHit.normal, Vector3.up);
-            Vector3 wallrunVelocity = (wallDir * wallrunSpeed * Vector3.Dot(wallDir, transform.forward)) - (u.wallHit.normal *300 * Time.deltaTime * Vector3.Distance(transform.position-(u.wallHit.normal*u.capsuleCollider.radius), u.wallHit.point));
-            wallrunVelocity.y = 0;
-
+            float wallSide = Vector3.Dot(wallDir, (transform.forward * u.signedDirInput.y + transform.right * u.signedDirInput.x).normalized);
+            Vector3 wallrunVelocity = (wallDir * wallrunSpeed * wallSide - (u.wallHit.normal * 300 * Time.deltaTime * Vector3.Distance(transform.position-(u.wallHit.normal*u.capsuleCollider.radius), u.wallHit.point)));
+            wallrunVelocity.y = rb.velocity.y;
             rb.velocity = wallrunVelocity;
             oldWallrunningNormal = u.wallHit.normal;
+            oldWallrunningHeight = u.wallHit.point.y;
             wallrunningTime += Time.deltaTime;
 
             look.SetTargetDutch(-15 * Mathf.Clamp01((wallrunningDuration+.5f-wallrunningTime)/wallrunningDuration) * Vector3.Dot(wallDir, transform.forward));
-            
+            rb.AddForce(-Vector3.up * 300 * Time.deltaTime, ForceMode.Acceleration);
             return;
         }
         if (wallrunning) {
@@ -91,7 +107,7 @@ public class TestMovement : MonoBehaviour
             look.SetTargetDutch(0);
         }
 
-        canWallrun = u.WallCheck() && oldWallrunningNormal != u.wallHit.normal && wallrunEnabled; 
+        canWallrun = u.WallCheck() && oldWallrunningNormal != u.wallHit.normal && oldWallrunningHeight > u.wallHit.point.y && u.dirInput.magnitude != 0 && wallrunEnabled && !Input.GetKey(KeyCode.LeftControl); 
 
         u.onJump -= Jump;
         u.onJump += Jump;
@@ -118,7 +134,7 @@ public class TestMovement : MonoBehaviour
         var current_speed = Vector3.Dot(rb.velocity, wish);
         var max_accel = (u.grounded ? MAX_ACCELERATION : MAX_AIR_ACCELERATION);
         var max_speed = MAX_SPEED;
-        if (u.crouchInput && u.grounded)
+        if (u.crouchInput && u.grounded && rb.velocity.magnitude > 3)
             max_speed = MAX_SPEED * 1.5f;
 
         var add_speed = Mathf.Clamp(max_speed - current_speed, 0, max_accel * Time.deltaTime);
