@@ -70,6 +70,12 @@ public class MovementUtils : MonoBehaviour
             if (canJump) { canJump = false; }
             else if (canDoubleJump) { canDoubleJump = false; }
         }
+
+        if (Input.GetKeyDown(KeyCode.R)) {
+            rb.velocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            transform.position = new Vector3(0, 5f, 0);
+        }
     }
 
     public RaycastHit wallHit;
@@ -81,7 +87,7 @@ public class MovementUtils : MonoBehaviour
     }
 
     void OnCollisionStay(Collision collision) {
-        if (!grounded && whatIsGround.value == (whatIsGround.value | (1 << collision.gameObject.layer)) && collision.contacts[0].normal.y > 0.2f) {
+        if (!grounded && whatIsGround.value == (whatIsGround.value | (1 << collision.gameObject.layer)) && collision.contacts[0].normal.y > 0.65f) {
             grounded = true;
             canJump = true;
             canDoubleJump = true;

@@ -46,10 +46,9 @@ public class TestMovement : MonoBehaviour
         // Debug.Log("Jump");
 
         if (wallrunning) {
-            canWallrun = false;
             Vector3 wallDir = Vector3.Cross(u.wallHit.normal, Vector3.up);
             float wallSide = Vector3.Dot(wallDir, (transform.forward * Mathf.Sign(u.signedDirInput.y) + transform.right * u.signedDirInput.x).normalized);
-            Vector3 newVel = wallDir.normalized * (wallrunSpeed - 5) * wallSide + u.wallHit.normal * 5;
+            Vector3 newVel = wallDir.normalized * (wallrunSpeed - 3) * Mathf.Sign(wallSide) + u.wallHit.normal * 5;
 
             if (Vector3.Dot(u.wallHit.normal, transform.forward) < -0.7f) {
                 Debug.Log("away!");
@@ -57,6 +56,11 @@ public class TestMovement : MonoBehaviour
             }
             newVel.y = jumpForce;
             rb.velocity = newVel;
+
+            canWallrun = false;
+            wallrunEnabled = false;
+            Invoke("EnableWallrun", .3f);
+            oldWallrunningHeight -= 0.1f;
         }
         else {
             oldWallrunningNormal = Vector3.zero;
@@ -80,10 +84,6 @@ public class TestMovement : MonoBehaviour
                 wallrunEnabled = false;
                 Invoke("EnableWallrun", .3f);
 
-                // if (!Input.GetKeyDown(KeyCode.LeftControl))
-                //     Invoke("EnableWallrun", .3f);
-                // else
-                //     u.onEnterGround += EnableWallrun;
                 rb.velocity += u.wallHit.normal * 2;
                 oldWallrunningHeight -= 0.1f;
                 return;
@@ -105,9 +105,10 @@ public class TestMovement : MonoBehaviour
             wallrunning = false;
             wallrunSpeed = 0;
             look.SetTargetDutch(0);
+            oldWallrunningHeight -= 0.1f;
         }
 
-        canWallrun = u.WallCheck() && oldWallrunningNormal != u.wallHit.normal && oldWallrunningHeight > u.wallHit.point.y && wallrunEnabled && !Input.GetKey(KeyCode.LeftControl); 
+        canWallrun = u.WallCheck() && oldWallrunningNormal != u.wallHit.normal && wallrunEnabled && !Input.GetKey(KeyCode.LeftControl);// oldWallrunningHeight > u.wallHit.point.y 
 
         u.onJump -= Jump;
         u.onJump += Jump;
@@ -132,7 +133,7 @@ public class TestMovement : MonoBehaviour
         }
 
         var current_speed = Vector3.Dot(rb.velocity, wish);
-        var max_accel = (u.grounded ? MAX_ACCELERATION : MAX_AIR_ACCELERATION);
+        var max_accel = (u.grounded ? MAX_ACCELERATION : (triggers > 0 ? MAX_AIR_ACCELERATION * 3 : MAX_AIR_ACCELERATION));
         var max_speed = MAX_SPEED;
         if (u.crouchInput && u.grounded && rb.velocity.magnitude > 3)
             max_speed = MAX_SPEED * 1.5f;
@@ -141,7 +142,40 @@ public class TestMovement : MonoBehaviour
 
         rb.velocity = rb.velocity + add_speed * wish;
         // rb.AddForce(-Vector3.up * (u.crouchInput && u.grounded ? 60 : 20), ForceMode.Acceleration);
-        rb.AddForce(-Vector3.up * 1100 * Time.deltaTime, ForceMode.Acceleration);
+        rb.AddForce(-Vector3.up * ((u.crouchInput && u.grounded) ? 2200 : 1100) * Time.deltaTime, ForceMode.Acceleration);
         slideTime += Time.deltaTime;
+    }
+
+    int triggers = 0;
+    void OnTriggerEnter(Collider other) {
+        triggers += 1;
+    }
+    void OnTriggerExit(Collider other) {
+        triggers -= 1;
+    }
+
+    void OnGUI() {
+        var boldStyle = new GUIStyle(GUI.skin.label);
+        boldStyle.fontStyle = FontStyle.Bold;
+        boldStyle.alignment = TextAnchor.UpperCenter;
+
+        void DrawLabel(Rect rect, string value, float outline) {
+            GUI.color = Color.black;
+
+            GUI.Label(new Rect(rect.x+outline, rect.y, rect.width, rect.height), value, boldStyle);
+            GUI.Label(new Rect(rect.x, rect.y+outline, rect.width, rect.height), value, boldStyle);
+            GUI.Label(new Rect(rect.x-outline, rect.y, rect.width, rect.height), value, boldStyle);
+            GUI.Label(new Rect(rect.x, rect.y-outline, rect.width, rect.height), value, boldStyle);
+
+            GUI.Label(new Rect(rect.x+outline, rect.y+outline, rect.width, rect.height), value, boldStyle);
+            GUI.Label(new Rect(rect.x+outline, rect.y-outline, rect.width, rect.height), value, boldStyle);
+            GUI.Label(new Rect(rect.x-outline, rect.y+outline, rect.width, rect.height), value, boldStyle);
+            GUI.Label(new Rect(rect.x-outline, rect.y-outline, rect.width, rect.height), value, boldStyle);
+            GUI.color = Color.white;
+            GUI.Label(rect, value, boldStyle);
+        }
+        // get screen rect
+        DrawLabel(new Rect(Screen.width/2 - 50, Screen.height/2 + 30, 100, 20), "Speed: " + Mathf.Round(rb.velocity.magnitude*100)/100, 1);
+        DrawLabel(new Rect(Screen.width/2 - 50, Screen.height/2 + 60, 100, 20), "HSpeed: " + Mathf.Round(u.xzVelocity().magnitude*100)/100, 1);
     }
 }
