@@ -71,7 +71,7 @@ public class MovementUtils : MonoBehaviour
             else if (canDoubleJump) { canDoubleJump = false; }
         }
 
-        if (Input.GetKeyDown(KeyCode.R)) {
+        if (Input.GetKeyDown(KeyCode.R) || transform.position.y < -20) {
             rb.velocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
             transform.position = new Vector3(0, 5f, 0);

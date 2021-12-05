@@ -19,7 +19,7 @@ public class TestMovement : MonoBehaviour
     private float wallrunSpeed = 0;
     private bool wallrunning = false, canWallrun = true, wallrunEnabled = true;
     private float wallrunningTime = 0;
-    private float wallrunningDuration = 3;
+    private float wallrunningDuration = 1.3f;
     private Vector3 oldWallrunningNormal = Vector3.zero;
     private float oldWallrunningHeight = Mathf.Infinity;
     private PlayerLook look;
@@ -73,6 +73,7 @@ public class TestMovement : MonoBehaviour
     void EnableWallrun() { wallrunEnabled = true; u.onEnterGround -= EnableWallrun; }
 
     void Update() {
+        Vector3 wish = transform.TransformDirection(new Vector3(u.dirInput.x * inputScaling.x, 0, u.dirInput.y * inputScaling.y));
         look.SetTargetHeight(u.crouchInput ? crouchHeight : 1f);
         var upRaycast = Physics.Raycast(transform.position, Vector3.up, 1.5f, LayerMask.GetMask("Default"));
         if (upRaycast) {
@@ -98,8 +99,15 @@ public class TestMovement : MonoBehaviour
                 return;
             }
             Vector3 wallDir = Vector3.Cross(u.wallHit.normal, Vector3.up);
-            float wallSide = Vector3.Dot(wallDir, (transform.forward * Mathf.Sign(u.signedDirInput.y) + transform.right * u.signedDirInput.x).normalized);
-            Vector3 wallrunVelocity = (wallDir * wallrunSpeed * wallSide - (u.wallHit.normal * 300 * Time.deltaTime * Vector3.Distance(transform.position-(u.wallHit.normal*u.capsuleCollider.radius), u.wallHit.point)));
+            // float wallSide = Vector3.Dot(wallDir, (transform.forward * Mathf.Sign(u.signedDirInput.y) + transform.right * u.signedDirInput.x).normalized);
+            // Vector3 wallrunVelocity = (wallDir * wallrunSpeed * wallSide - (u.wallHit.normal * 300 * Time.deltaTime * Vector3.Distance(transform.position-(u.wallHit.normal*u.capsuleCollider.radius), u.wallHit.point)));
+            
+            // get the wishdir in "wall space", where x is the value of wishdir along the wall direction, and z is the value of wishdir perpendicular to the wall direction
+            Vector3 smoothWish = transform.TransformDirection(new Vector3(u.smoothDirInput.x * inputScaling.x, 0, u.smoothDirInput.y * inputScaling.y));
+            Vector3 wallSpaceWish = new Vector3(Vector3.Dot(smoothWish, wallDir), 0, Vector3.Dot(smoothWish, u.wallHit.normal));
+            Vector3 stickVelocity = (-u.wallHit.normal * 300 * Time.deltaTime * Vector3.Distance(transform.position-(u.wallHit.normal*u.capsuleCollider.radius), u.wallHit.point));
+            Vector3 wallrunVelocity = wallDir * wallSpaceWish.x * Mathf.Lerp(wallrunSpeed, 15, 5 * wallrunningTime) + stickVelocity;
+
             wallrunVelocity.y = rb.velocity.y;
             rb.velocity = wallrunVelocity;
             oldWallrunningNormal = u.wallHit.normal;
@@ -122,7 +130,6 @@ public class TestMovement : MonoBehaviour
         u.onJump -= Jump;
         u.onJump += Jump;
 
-        Vector3 wish = transform.TransformDirection(new Vector3(u.dirInput.x * inputScaling.x, 0, u.dirInput.y * inputScaling.y));
         if (u.crouchInput && u.grounded) {
             if (slideTime < .2f) {
                 wish = u.xzVelocity().normalized;
@@ -145,7 +152,7 @@ public class TestMovement : MonoBehaviour
         }
 
         var current_speed = Vector3.Dot(rb.velocity, wish);
-        var max_accel = (u.grounded ? (u.crouchInput ? 50 : MAX_ACCELERATION) : MAX_AIR_ACCELERATION);
+        var max_accel = (u.grounded ? (u.crouchInput ? 100 : MAX_ACCELERATION) : MAX_AIR_ACCELERATION);
         var max_speed = MAX_SPEED;
         if (u.crouchInput && u.grounded && u.xzVelocity().magnitude > 9)
             max_speed = MAX_SPEED * 1.5f;
