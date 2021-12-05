@@ -83,9 +83,14 @@ public class MovementUtils : MonoBehaviour
         Vector3 right = Vector3.Cross(Vector3.up, rb.velocity.normalized);
         bool retval = Physics.Raycast(transform.position, right, out wallHit, capsuleCollider.radius + 0.9f) 
                     || Physics.Raycast(transform.position, -right, out wallHit, capsuleCollider.radius + 0.9f);
-        return retval && Mathf.Abs(wallHit.normal.y) < 0.1f && !grounded;
+        return retval && Mathf.Abs(wallHit.normal.y) < 0.1f && !grounded && !Physics.Raycast(transform.position, -Vector3.up, capsuleCollider.height + 0.1f);
     }
 
+    public int groundColliders { get; private set; }
+    void OnCollisionEnter(Collision collision) {
+        // if (whatIsGround.value == (whatIsGround.value | (1 << collision.gameObject.layer)))
+        //     groundColliders += 1;
+    }
     void OnCollisionStay(Collision collision) {
         if (!grounded && whatIsGround.value == (whatIsGround.value | (1 << collision.gameObject.layer)) && collision.contacts[0].normal.y > 0.65f) {
             grounded = true;
@@ -105,6 +110,7 @@ public class MovementUtils : MonoBehaviour
             groundNormal = Vector3.zero;
 
             if (onExitGround != null) onExitGround();
+            // groundColliders -= 1;
         }
     }
 

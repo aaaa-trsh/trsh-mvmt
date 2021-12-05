@@ -4,10 +4,12 @@ using UnityEngine;
 using System.Linq;
 public class TestMovement : MonoBehaviour
 {
-    public float MAX_SPEED = 10f;
+    public float MAX_SPEED = 11f;
     public float MAX_ACCELERATION = 100f;
     public float MAX_AIR_ACCELERATION = 100f;
     public float friction = 5f;
+    public bool speedometer = false;
+    public float crouchHeight = 0.2f;
     public float jumpForce = 5f;
     public Vector2 inputScaling = Vector2.one;
     private Rigidbody rb;
@@ -21,7 +23,7 @@ public class TestMovement : MonoBehaviour
     private Vector3 oldWallrunningNormal = Vector3.zero;
     private float oldWallrunningHeight = Mathf.Infinity;
     private PlayerLook look;
-    
+    private Vector3 prevVelocity;
     void Start() {
         rb = GetComponent<Rigidbody>();
         look = GetComponent<PlayerLook>();
@@ -30,8 +32,8 @@ public class TestMovement : MonoBehaviour
         u.onEnterGround += () => {
             oldWallrunningNormal = Vector3.zero;
             oldWallrunningHeight = Mathf.Infinity;
+            MAX_SPEED = 11f;
         };
-
         u.onCrouchInput += () => {
             Debug.Log("Crouch");
             slideQueued = true;
@@ -40,8 +42,12 @@ public class TestMovement : MonoBehaviour
 
     void Jump() {
         Vector3 wish = transform.TransformDirection(new Vector3(u.dirInput.x * inputScaling.x, 0, u.dirInput.y * inputScaling.y));
-        if (!u.grounded && u.dirInput.magnitude > 0)
-            rb.velocity = ((wish * Mathf.Clamp(Mathf.Abs(Vector3.Dot(rb.velocity.normalized, wish)) + .5f, .5f, 1)) + rb.velocity.normalized).normalized * u.xzVelocity().magnitude;
+        if (!u.grounded && u.dirInput.magnitude > 0) {
+            var radians = Vector3.Angle(u.xzVelocity(), wish) * Mathf.Deg2Rad;
+            var mag = Mathf.Max((0.4f * Mathf.Cos((radians * u.xzVelocity().magnitude) / 50) + 0.6f) * u.xzVelocity().magnitude, 10);
+            MAX_SPEED = mag;
+            rb.velocity = ((wish * Mathf.Clamp(Mathf.Abs(Vector3.Dot(rb.velocity.normalized, wish)) + .5f, .5f, 1)) + rb.velocity.normalized).normalized * mag;// * Mathf.Cos();
+        }
         rb.velocity = new Vector3(rb.velocity.x, jumpForce, rb.velocity.z);
         // Debug.Log("Jump");
 
@@ -62,15 +68,18 @@ public class TestMovement : MonoBehaviour
             Invoke("EnableWallrun", .3f);
             oldWallrunningHeight -= 0.1f;
         }
-        else {
-            oldWallrunningNormal = Vector3.zero;
-        }
     }
 
     void EnableWallrun() { wallrunEnabled = true; u.onEnterGround -= EnableWallrun; }
 
     void Update() {
-        look.SetTargetHeight(u.crouchInput ? .4f : 1f);
+        look.SetTargetHeight(u.crouchInput ? crouchHeight : 1f);
+        var upRaycast = Physics.Raycast(transform.position, Vector3.up, 1.5f, LayerMask.GetMask("Default"));
+        if (upRaycast) {
+            u.crouchInput = true;
+        }
+        u.capsuleCollider.height = u.crouchInput ? .5f : 2f;
+        u.capsuleCollider.center = new Vector3(0, u.crouchInput ? -.5f : 0, 0);
         if (u.WallCheck() && canWallrun) {
             if (!wallrunning) {
                 u.JumpReset();
@@ -107,24 +116,27 @@ public class TestMovement : MonoBehaviour
             look.SetTargetDutch(0);
             oldWallrunningHeight -= 0.1f;
         }
-
-        canWallrun = u.WallCheck() && oldWallrunningNormal != u.wallHit.normal && wallrunEnabled && !Input.GetKey(KeyCode.LeftControl);// oldWallrunningHeight > u.wallHit.point.y 
+        Debug.Log((oldWallrunningNormal != u.wallHit.normal ? true : oldWallrunningHeight > u.wallHit.point.y));
+        canWallrun = u.WallCheck() && (oldWallrunningNormal != u.wallHit.normal ? true : oldWallrunningHeight > u.wallHit.point.y) && wallrunEnabled && !Input.GetKey(KeyCode.LeftControl);// oldWallrunningHeight > u.wallHit.point.y 
 
         u.onJump -= Jump;
         u.onJump += Jump;
 
-        Vector3 wish = (u.crouchInput && u.grounded) ? Vector3.zero : transform.TransformDirection(new Vector3(u.dirInput.x * inputScaling.x, 0, u.dirInput.y * inputScaling.y));
-
-        if (slideTime < .2f) {
-            wish = u.xzVelocity().normalized;
+        Vector3 wish = transform.TransformDirection(new Vector3(u.dirInput.x * inputScaling.x, 0, u.dirInput.y * inputScaling.y));
+        if (u.crouchInput && u.grounded) {
+            if (slideTime < .2f) {
+                wish = u.xzVelocity().normalized;
+            }else {
+                wish = Vector3.zero;
+            }
         }
 
         if (u.grounded && rb.velocity.magnitude != 0) {
-            if (slideQueued) {
+            if (slideQueued && prevVelocity.magnitude > 9) {
                 slideQueued = false;
                 slideTime = 0;
             }
-            float drop = rb.velocity.magnitude * (u.crouchInput ? .2f : friction) * Time.deltaTime;
+            float drop = rb.velocity.magnitude * (u.crouchInput ? 0.2f : friction) * Time.deltaTime;
             // float drop = rb.velocity.magnitude * friction * Time.deltaTime;
 
             float yVel = rb.velocity.y;
@@ -133,26 +145,21 @@ public class TestMovement : MonoBehaviour
         }
 
         var current_speed = Vector3.Dot(rb.velocity, wish);
-        var max_accel = (u.grounded ? MAX_ACCELERATION : (triggers > 0 ? MAX_AIR_ACCELERATION * 3 : MAX_AIR_ACCELERATION));
+        var max_accel = (u.grounded ? (u.crouchInput ? 50 : MAX_ACCELERATION) : MAX_AIR_ACCELERATION);
         var max_speed = MAX_SPEED;
-        if (u.crouchInput && u.grounded && rb.velocity.magnitude > 3)
+        if (u.crouchInput && u.grounded && u.xzVelocity().magnitude > 9)
             max_speed = MAX_SPEED * 1.5f;
 
         var add_speed = Mathf.Clamp(max_speed - current_speed, 0, max_accel * Time.deltaTime);
 
         rb.velocity = rb.velocity + add_speed * wish;
         // rb.AddForce(-Vector3.up * (u.crouchInput && u.grounded ? 60 : 20), ForceMode.Acceleration);
-        rb.AddForce(-Vector3.up * ((u.crouchInput && u.grounded) ? 2200 : 1100) * Time.deltaTime, ForceMode.Acceleration);
+        rb.AddForce(-Vector3.up * ((u.crouchInput && u.groundColliders > 0) ? 1800 : 1100) * Time.deltaTime, ForceMode.Acceleration);
         slideTime += Time.deltaTime;
+        prevVelocity = rb.velocity;
     }
 
-    int triggers = 0;
-    void OnTriggerEnter(Collider other) {
-        triggers += 1;
-    }
-    void OnTriggerExit(Collider other) {
-        triggers -= 1;
-    }
+
 
     void OnGUI() {
         var boldStyle = new GUIStyle(GUI.skin.label);
@@ -175,7 +182,15 @@ public class TestMovement : MonoBehaviour
             GUI.Label(rect, value, boldStyle);
         }
         // get screen rect
-        DrawLabel(new Rect(Screen.width/2 - 50, Screen.height/2 + 30, 100, 20), "Speed: " + Mathf.Round(rb.velocity.magnitude*100)/100, 1);
-        DrawLabel(new Rect(Screen.width/2 - 50, Screen.height/2 + 60, 100, 20), "HSpeed: " + Mathf.Round(u.xzVelocity().magnitude*100)/100, 1);
+        if(speedometer){
+         DrawLabel(new Rect(Screen.width/2 - 50, Screen.height/2 + 30, 100, 20), "Speed: " + (int)Mathf.Round(rb.velocity.magnitude*100)/50, 1);
+         DrawLabel(new Rect(Screen.width/2 - 50, Screen.height/2 + 60, 100, 20), "HSpeed: " + (int)Mathf.Round(u.xzVelocity().magnitude*100)/50, 1);
+        }
+        
+        // Texture2D texture = new Texture2D(1, 1);
+        // texture.SetPixel(0,0,Color.white);
+        // texture.Apply();
+        // GUI.skin.box.normal.background = texture;
+        // GUI.Box(new Rect(Screen.width/2 - 1, Screen.height/2 - 2, 2, 2), GUIContent.none);
     }
 }
