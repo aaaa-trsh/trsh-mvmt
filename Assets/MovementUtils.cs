@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class MovementUtils : MonoBehaviour
@@ -14,6 +15,7 @@ public class MovementUtils : MonoBehaviour
     public bool holdSprintInput { get { return _holdSprintInput; } set{ sprintInput = false; _holdSprintInput = value; } }
 
     public Vector3 groundNormal { get; private set; }
+    public Vector3 wallNormal { get; private set; }
     public bool grounded { get; private set; }
     public bool jumpInput { get; private set; }
     public Vector2 dirInput { get; private set; }
@@ -34,11 +36,13 @@ public class MovementUtils : MonoBehaviour
 
     private Rigidbody rb;
     public CapsuleCollider capsuleCollider { get; private set; }
+    public List<ContactPoint> contacts { get; private set; }
 
     void Awake() {
         holdSprintInput = true;
         holdCrouchInput = true;
         rb = GetComponent<Rigidbody>();
+        contacts = new List<ContactPoint>();
         capsuleCollider = GetComponent<CapsuleCollider>();
     }
 
@@ -75,6 +79,7 @@ public class MovementUtils : MonoBehaviour
             rb.velocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
             transform.position = new Vector3(0, 5f, 0);
+            GetComponent<PlayerLook>().SetHorzontalRotation(271.278f);
         }
     }
 
@@ -83,6 +88,11 @@ public class MovementUtils : MonoBehaviour
         Vector3 right = Vector3.Cross(Vector3.up, rb.velocity.normalized);
         bool retval = Physics.Raycast(transform.position, right, out wallHit, capsuleCollider.radius + 0.9f) 
                     || Physics.Raycast(transform.position, -right, out wallHit, capsuleCollider.radius + 0.9f);
+        if (retval) 
+            wallNormal = wallHit.normal;
+        else
+            wallNormal = Vector3.zero;
+        // wallNormal = contacts.Count == 0 ? wallHit.normal : (contacts.Select(c => c.normal).Aggregate(Vector3.zero, (acc, v) => acc + v) / contacts.Count).normalized;
         return retval && Mathf.Abs(wallHit.normal.y) < 0.1f && !grounded && !Physics.Raycast(transform.position, -Vector3.up, capsuleCollider.height + 0.1f);
     }
 
@@ -90,6 +100,7 @@ public class MovementUtils : MonoBehaviour
     void OnCollisionEnter(Collision collision) {
         // if (whatIsGround.value == (whatIsGround.value | (1 << collision.gameObject.layer)))
         //     groundColliders += 1;
+        // contacts.Add(collision.contacts[0]);
     }
     void OnCollisionStay(Collision collision) {
         if (!grounded && whatIsGround.value == (whatIsGround.value | (1 << collision.gameObject.layer)) && collision.contacts[0].normal.y > 0.65f) {
@@ -112,6 +123,7 @@ public class MovementUtils : MonoBehaviour
             if (onExitGround != null) onExitGround();
             // groundColliders -= 1;
         }
+        // contacts = contacts.Where(c => c.otherCollider != collision.collider).ToList();
     }
 
     public void JumpReset() {

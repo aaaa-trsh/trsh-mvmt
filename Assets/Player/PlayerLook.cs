@@ -49,6 +49,10 @@ public class PlayerLook : MonoBehaviour
         targetHeight = height;
     }
 
+    public void SetHorzontalRotation(float _) {
+        yRotation = _;
+    }
+
     public void Shake(float frequency, float amplitude) {
         vCamNoise.m_FrequencyGain = frequency;
         vCamNoise.m_AmplitudeGain = amplitude;
