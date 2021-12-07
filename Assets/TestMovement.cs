@@ -27,7 +27,7 @@ public class TestMovement : MonoBehaviour
     private PlayerLook look;
     private Vector3 prevVelocity;
     private float wallNormalResetTime = 0;
-    private Tuple<Vector3, Vector3> wallData;
+    private Tuple<Vector3, Vector3> wallData = new Tuple<Vector3, Vector3>(Vector3.zero, Vector3.zero);
     void Start() {
         rb = GetComponent<Rigidbody>();
         look = GetComponent<PlayerLook>();
@@ -96,7 +96,7 @@ public class TestMovement : MonoBehaviour
                 wallrunning = true;
                 wallrunningTime = 0;
                 wallrunSpeed = Mathf.Max(u.xzVelocity().magnitude, 13f);
-                rb.velocity = new Vector3(rb.velocity.x, 0, rb.velocity.z);
+                rb.velocity = new Vector3(rb.velocity.x, Mathf.Max(rb.velocity.y, -1f)/2, rb.velocity.z);
                 wallNormalResetTime = 0;
                 wallData = new Tuple<Vector3, Vector3>(u.wallHit.normal, u.wallHit.point);
                 Debug.Log("wallrunSTART");
@@ -131,7 +131,7 @@ public class TestMovement : MonoBehaviour
             Vector3 wallrunVelocity = wallDir * wallSpaceWish.x * Mathf.Lerp(wallrunSpeed, 15, 5 * wallrunningTime) + stickVelocity;
             wallrunVelocity.y = rb.velocity.y;
             oldWallrunningHeight = u.wallHit.point.y;
-            look.SetTargetDutch(-15 * Mathf.Clamp01((wallrunningDuration+.5f-wallrunningTime)/wallrunningDuration) * Vector3.Dot(wallDir, transform.forward));
+            look.SetTargetDutch(Mathf.Lerp(look.targetDutch, -15 * Mathf.Clamp01((wallrunningDuration+.5f-wallrunningTime)/wallrunningDuration) * Vector3.Dot(wallDir, transform.forward), 50*Time.deltaTime));
             wallNormalResetTime = Mathf.Max(wallNormalResetTime - Time.deltaTime, 0);
 
             rb.AddForce(-Vector3.up * 300 * Time.deltaTime, ForceMode.Acceleration);
@@ -145,6 +145,8 @@ public class TestMovement : MonoBehaviour
         if (wallrunning) {
             Debug.Log("wallrunOFF " + wallrunning);
             wallrunning = false;
+            Invoke("EnableWallrun", .3f);
+            oldWallrunningHeight -= 0.4f;
             look.SetTargetDutch(0);
         }
 
@@ -176,7 +178,7 @@ public class TestMovement : MonoBehaviour
 
         var current_speed = Vector3.Dot(rb.velocity, wish);
         var max_speed = MAX_SPEED;
-        var max_accel = (u.grounded ? (u.crouchInput && current_speed > max_speed ? 40 : MAX_ACCELERATION) : MAX_AIR_ACCELERATION);
+        var max_accel = (u.grounded ? (u.crouchInput && u.xzVelocity().magnitude > max_speed ? 40 : MAX_ACCELERATION) : MAX_AIR_ACCELERATION);
         if (u.crouchInput && u.grounded && u.xzVelocity().magnitude > 9)
             max_speed = MAX_SPEED * 1.5f;
 

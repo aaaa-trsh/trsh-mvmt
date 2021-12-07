@@ -9959,6 +9959,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   cameraRig: {fileID: 1576551666}
   virtualCamera: {fileID: 609973784}
+  targetDutch: 0
+  targetHeight: 0
 --- !u!114 &1024902495
 MonoBehaviour:
   m_ObjectHideFlags: 0

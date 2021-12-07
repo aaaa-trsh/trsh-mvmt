@@ -86,8 +86,8 @@ public class MovementUtils : MonoBehaviour
     public RaycastHit wallHit;
     public bool WallCheck() {
         Vector3 right = Vector3.Cross(Vector3.up, rb.velocity.normalized);
-        bool retval = Physics.Raycast(transform.position, right, out wallHit, capsuleCollider.radius + 0.9f) 
-                    || Physics.Raycast(transform.position, -right, out wallHit, capsuleCollider.radius + 0.9f);
+        bool retval = Physics.Raycast(transform.position, right, out wallHit, capsuleCollider.radius + 0.4f) 
+                    || Physics.Raycast(transform.position, -right, out wallHit, capsuleCollider.radius + 0.4f);
         if (retval) 
             wallNormal = wallHit.normal;
         else

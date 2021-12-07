@@ -7,8 +7,8 @@ public class PlayerLook : MonoBehaviour
     public Cinemachine.CinemachineVirtualCamera virtualCamera;
     private float xRotation = 0f;
     private float yRotation = 0f;
-    private float targetDutch = 0f;
-    private float targetHeight = 0f;
+    public float targetDutch = 0f;
+    public float targetHeight = 0f;
     private Cinemachine.CinemachineBasicMultiChannelPerlin vCamNoise;
     
     void Start() {
