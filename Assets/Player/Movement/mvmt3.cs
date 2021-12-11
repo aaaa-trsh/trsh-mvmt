@@ -52,7 +52,6 @@ public class mvmt3 : MonoBehaviour
         if (!u.grounded && u.dirInput.magnitude > 0) {
             var radians = Vector3.Angle(u.xzVelocity(), wish) * Mathf.Deg2Rad;
             var mag = Mathf.Max((0.4f * Mathf.Cos((radians * u.xzVelocity().magnitude) / 50) + 0.6f) * u.xzVelocity().magnitude, 10);
-            maxSpeed = mag;
             rb.velocity = ((wish * Mathf.Clamp(Mathf.Abs(Vector3.Dot(rb.velocity.normalized, wish)) + .5f, .5f, 1)) + rb.velocity.normalized).normalized * mag;// * Mathf.Cos();
         }
 
