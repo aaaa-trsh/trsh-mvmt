@@ -6,6 +6,10 @@ using UnityEngine;
 public class MovementUtils : MonoBehaviour
 {
     public LayerMask whatIsGround;
+    public bool speedometer;
+    public float minGroundDotProduct = 0.2f;
+    public bool canJump = true;
+    public bool canDoubleJump = true;
     public bool crouchInput { get; set; }
     public bool sprintInput { get; set; }
 
@@ -16,14 +20,15 @@ public class MovementUtils : MonoBehaviour
 
     public Vector3 groundNormal { get; private set; }
     public Vector3 wallNormal { get; private set; }
-    public bool grounded { get; private set; }
+
+    public int groundContactCount { get; private set; }
+    public bool grounded => groundContactCount > 0;// { get; private set; }
     public bool jumpInput { get; private set; }
     public Vector2 dirInput { get; private set; }
     public Vector2 smoothDirInput { get; private set; }
     public Vector2 signedDirInput { get; private set; }
     private Vector2 prevDirInput;
-    public bool canJump { get; private set; }
-    public bool canDoubleJump { get; private set; }
+    public int jumps { get; private set; }
 
     public delegate void OnEnterGround();
     public OnEnterGround onEnterGround;
@@ -31,6 +36,8 @@ public class MovementUtils : MonoBehaviour
     public OnExitGround onExitGround;
     public delegate void OnJump();
     public OnJump onJump;
+    public delegate void OnReset();
+    public OnReset onReset;
     public delegate void OnCrouchInput();
     public OnCrouchInput onCrouchInput;
 
@@ -48,7 +55,7 @@ public class MovementUtils : MonoBehaviour
 
     void Update() {
         dirInput = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical")).normalized;
-        smoothDirInput = Vector2.Lerp(smoothDirInput, dirInput, Time.deltaTime * 10);
+        smoothDirInput = Vector2.Lerp(smoothDirInput, dirInput, Time.deltaTime * 20);
         if (dirInput.magnitude > 0) {
             prevDirInput = dirInput;
         }
@@ -62,7 +69,9 @@ public class MovementUtils : MonoBehaviour
             if (holdCrouchInput) { crouchInput = Input.GetKey(KeyCode.LeftControl); }
             else if (Input.GetKeyDown(KeyCode.LeftControl)) { Debug.Log(crouchInput);crouchInput = !crouchInput; }
             if (tempCrouchIn != crouchInput && crouchInput) { onCrouchInput?.Invoke(); }
-        } else { crouchInput = false; }
+        } else {
+            crouchInput = false;
+        }
         
         if (holdSprintInput) { sprintInput = Input.GetKey(KeyCode.LeftShift); }
         else if (Input.GetKeyDown(KeyCode.LeftShift)) { sprintInput = !sprintInput; }
@@ -80,57 +89,103 @@ public class MovementUtils : MonoBehaviour
             rb.angularVelocity = Vector3.zero;
             transform.position = new Vector3(0, 5f, 0);
             GetComponent<PlayerLook>().SetHorzontalRotation(271.278f);
+            onReset?.Invoke();
         }
     }
 
     public RaycastHit wallHit;
     public bool WallCheck() {
         Vector3 right = Vector3.Cross(Vector3.up, rb.velocity.normalized);
-        bool retval = Physics.Raycast(transform.position, right, out wallHit, capsuleCollider.radius + 0.4f) 
-                    || Physics.Raycast(transform.position, -right, out wallHit, capsuleCollider.radius + 0.4f);
+        bool retval = //Physics.Raycast(transform.position, right, out wallHit, capsuleCollider.radius + 0.4f) 
+                    //|| Physics.Raycast(transform.position, -right, out wallHit, capsuleCollider.radius + 0.4f)
+                    Physics.Raycast(transform.position, transform.right, out wallHit, capsuleCollider.radius + 0.4f) 
+                    || Physics.Raycast(transform.position, -transform.right, out wallHit, capsuleCollider.radius + 0.4f);
         if (retval) 
             wallNormal = wallHit.normal;
         else
             wallNormal = Vector3.zero;
         // wallNormal = contacts.Count == 0 ? wallHit.normal : (contacts.Select(c => c.normal).Aggregate(Vector3.zero, (acc, v) => acc + v) / contacts.Count).normalized;
-        return retval && Mathf.Abs(wallHit.normal.y) < 0.1f && !grounded && !Physics.Raycast(transform.position, -Vector3.up, capsuleCollider.height + 0.1f);
+        return retval && Mathf.Abs(wallHit.normal.y) < 0.1f && !grounded && !Physics.Raycast(transform.position, -Vector3.up, capsuleCollider.height + 0.1f, whatIsGround) && Vector3.Dot(transform.forward, wallHit.normal) < 0.8f;
     }
 
     public int groundColliders { get; private set; }
+
+    void FixedUpdate() {
+        if (grounded) {
+			groundNormal.Normalize();
+            jumps = 0;
+            // canJump = true;
+            // canDoubleJump = true;
+		}
+		else {
+			groundNormal = Vector3.up;
+		}
+        groundContactCount = 0;
+		groundNormal = Vector3.zero;
+    }
     void OnCollisionEnter(Collision collision) {
-        // if (whatIsGround.value == (whatIsGround.value | (1 << collision.gameObject.layer)))
-        //     groundColliders += 1;
-        // contacts.Add(collision.contacts[0]);
+        if (!grounded && whatIsGround.value == (whatIsGround.value | (1 << collision.gameObject.layer))) {
+            EvaluateCollision(collision);
+            if (groundContactCount > 0) {
+                canJump = true;
+                canDoubleJump = true;
+                if (onEnterGround != null) onEnterGround();
+            }
+        }
+        
     }
     void OnCollisionStay(Collision collision) {
-        if (!grounded && whatIsGround.value == (whatIsGround.value | (1 << collision.gameObject.layer)) && collision.contacts[0].normal.y > 0.65f) {
-            grounded = true;
+        EvaluateCollision(collision);
+        if (groundContactCount > 0) {
             canJump = true;
             canDoubleJump = true;
-
-            if (groundNormal != collision.contacts[0].normal)
-                groundNormal = collision.contacts[0].normal;
-
-            if (onEnterGround != null) onEnterGround();
         }
     }
-
-    void OnCollisionExit(Collision collision) {
-        if (whatIsGround.value == (whatIsGround.value | (1 << collision.gameObject.layer))) {
-            grounded = false;
-            groundNormal = Vector3.zero;
-
-            if (onExitGround != null) onExitGround();
-            // groundColliders -= 1;
-        }
-        // contacts = contacts.Where(c => c.otherCollider != collision.collider).ToList();
+    void EvaluateCollision(Collision collision) {
+        // get flattest normal
+        for (int i = 0; i < collision.contactCount; i++) {
+			Vector3 normal = collision.GetContact(i).normal;
+			if (normal.y >= minGroundDotProduct) {
+				groundContactCount += 1;
+				groundNormal += normal;
+			}
+		}
     }
 
     public void JumpReset() {
         canJump = true;
         canDoubleJump = true;
+        jumps = 0;
     }
 
     public Vector3 xzVelocity() { return Vector3.Scale(rb.velocity, new Vector3(1, 0, 1)); }
+    public Vector3 transformify(Vector2 dir) { return transform.TransformDirection(new Vector3(dir.x, 0, dir.y)); }
 
+    void OnGUI() {
+        var boldStyle = new GUIStyle(GUI.skin.label);
+        boldStyle.fontStyle = FontStyle.Bold;
+        boldStyle.alignment = TextAnchor.UpperCenter;
+
+        void DrawLabel(Rect rect, string value, float outline) {
+            GUI.color = Color.black;
+
+            GUI.Label(new Rect(rect.x+outline, rect.y, rect.width, rect.height), value, boldStyle);
+            GUI.Label(new Rect(rect.x, rect.y+outline, rect.width, rect.height), value, boldStyle);
+            GUI.Label(new Rect(rect.x-outline, rect.y, rect.width, rect.height), value, boldStyle);
+            GUI.Label(new Rect(rect.x, rect.y-outline, rect.width, rect.height), value, boldStyle);
+
+            GUI.Label(new Rect(rect.x+outline, rect.y+outline, rect.width, rect.height), value, boldStyle);
+            GUI.Label(new Rect(rect.x+outline, rect.y-outline, rect.width, rect.height), value, boldStyle);
+            GUI.Label(new Rect(rect.x-outline, rect.y+outline, rect.width, rect.height), value, boldStyle);
+            GUI.Label(new Rect(rect.x-outline, rect.y-outline, rect.width, rect.height), value, boldStyle);
+            GUI.color = Color.white;
+            GUI.Label(rect, value, boldStyle);
+        }
+
+        // get screen rect
+        if(speedometer){
+            DrawLabel(new Rect(Screen.width/2 - 50, Screen.height/2 + 30, 100, 20), "Speed: " + (int)Mathf.Round(rb.velocity.magnitude*100)/50, 1);
+            DrawLabel(new Rect(Screen.width/2 - 50, Screen.height/2 + 60, 100, 20), "HSpeed: " + (int)Mathf.Round(xzVelocity().magnitude*100)/50, 1);
+        }
+    }
 }

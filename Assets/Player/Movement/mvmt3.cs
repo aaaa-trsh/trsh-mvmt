@@ -46,6 +46,10 @@ public class mvmt3 : MonoBehaviour
         u.onCrouchInput += () => {
             slideQueued = true;
         };
+        u.onReset += () => {
+            WallrunExit();
+            WallrunReset();
+        };
     }
     void Jump() {
         Vector3 wish = transform.TransformDirection(new Vector3(u.dirInput.x * inputScaling.x, 0, u.dirInput.y * inputScaling.y));
@@ -58,7 +62,7 @@ public class mvmt3 : MonoBehaviour
         if (wallrunning) {
             Vector3 wallDir = Vector3.Cross(u.wallHit.normal, Vector3.up);
             float wallSide = Vector3.Dot(wallDir, (transform.forward * Mathf.Sign(u.signedDirInput.y) + transform.right * u.signedDirInput.x).normalized);
-            Vector3 newVel = wallDir.normalized * (wallrunSpeed - 3) * Mathf.Sign(wallSide) + u.wallHit.normal * 5;
+            Vector3 newVel = wallDir.normalized * Mathf.Lerp(wallrunSpeed, 15, 5 * wallrunningTime) * Mathf.Sign(wallSide) + u.wallHit.normal * 5;
 
             if (Vector3.Dot(u.wallHit.normal, transform.forward) < -0.7f)
                 newVel = u.wallHit.normal * 4f;
@@ -90,13 +94,13 @@ public class mvmt3 : MonoBehaviour
             }
             wallData = new Tuple<Vector3, Vector3>(u.wallHit.normal, u.wallHit.point);
         }
-        return wallrunningTime > wallrunningDuration || Input.GetKeyDown(KeyCode.LeftControl) || eject || u.smoothDirInput.magnitude < 0.1f;
+        return wallrunningTime > wallrunningDuration || Input.GetKey(KeyCode.LeftControl) || eject || u.smoothDirInput.magnitude < 0.1f;
     }
     void WallrunExit() {
         canWallrun = false;
         wallrunEnabled = false;
         oldWallrunningHeight -= 0.4f;
-        wallData = new Tuple<Vector3, Vector3>(Vector3.zero, Vector3.zero);
+        // wallData = new Tuple<Vector3, Vector3>(Vector3.zero, Vector3.zero);
     }
 
     void WallrunReset() {
@@ -104,6 +108,7 @@ public class mvmt3 : MonoBehaviour
         Invoke("EnableWallrun", .3f);
         oldWallrunningHeight -= 0.4f;
         look.SetTargetDutch(0);
+        wallData = new Tuple<Vector3, Vector3>(Vector3.zero, Vector3.zero);
     }
     void Update() {
         if (canWallrun) {
@@ -111,14 +116,20 @@ public class mvmt3 : MonoBehaviour
                 WallrunStart();
                 Debug.Log("wallrunSTART");
             }
-
-            if (WallrunCheck()) {
+            Debug.Log(u.wallHit.normal);
+            if (WallrunCheck() || u.grounded) {
                 if (u.smoothDirInput.magnitude > 0.1f)
                     rb.velocity += u.wallHit.normal * 4;
                 WallrunExit();
                 Debug.Log("exit wallrun");
                 return;
             }
+
+            if(u.wallHit.normal.magnitude == 0f) {
+                WallrunExit();
+                return;
+            }
+                
 
             Vector3 wallDir = Vector3.Cross(wallData.Item1, Vector3.up);
             Vector3 smoothWish = transform.TransformDirection(new Vector3(u.smoothDirInput.x * inputScaling.x, 0, u.smoothDirInput.y * inputScaling.y));
@@ -135,7 +146,7 @@ public class mvmt3 : MonoBehaviour
             return;
         }
 
-        canWallrun = u.WallCheck() && (oldWallrunningNormal != u.wallHit.normal ? true : oldWallrunningHeight > u.wallHit.point.y) && wallrunEnabled && !Input.GetKey(KeyCode.LeftControl);// oldWallrunningHeight > u.wallHit.point.y 
+        canWallrun = u.WallCheck() && (oldWallrunningNormal != u.wallHit.normal ? true : oldWallrunningHeight > u.wallHit.point.y) && wallrunEnabled && u.dirInput.magnitude != 0;// oldWallrunningHeight > u.wallHit.point.y 
 
         if (wallrunning) {
             Debug.Log("wallrunOFF " + wallrunning);
@@ -176,16 +187,20 @@ public class mvmt3 : MonoBehaviour
 
             // core movement
             var curSpeed = Vector3.Dot(rb.velocity, wish);
-            var maxAccel = (u.crouchInput && u.xzVelocity().magnitude > _maxSpeed ? 40 : accel);
-            var addSpeed = Mathf.Clamp(_maxSpeed - curSpeed, 0, maxAccel * Time.deltaTime);
+            var _accel = 40;//(u.crouchInput && u.xzVelocity().magnitude > _maxSpeed ? 40 : accel);
+            var addSpeed = Mathf.Clamp(_maxSpeed - curSpeed, 0, _accel * Time.deltaTime * _maxSpeed);
             rb.velocity = rb.velocity + addSpeed * wish;
         }
         else {
             // core movement
             var curSpeed = Vector3.Dot(rb.velocity, wish);
-            var maxAccel = airAccel;
-            var addSpeed = Mathf.Clamp(_maxSpeed - curSpeed, 0, maxAccel * Time.deltaTime);
-            rb.velocity = rb.velocity + addSpeed * wish;
+            var _accel = airAccel;
+            var addSpeed = _maxSpeed - curSpeed;
+            if (addSpeed > 0) {
+                var _accelSpeed = Mathf.Min(_accel * Time.deltaTime * _maxSpeed, addSpeed);
+                
+                rb.velocity += _accelSpeed * wish;
+            }
         }
         rb.velocity = new Vector3(rb.velocity.x, yVel, rb.velocity.z);
         rb.AddForce(-Vector3.up * ((u.crouchInput && u.groundColliders > 0) ? 1800 : 1100) * Time.deltaTime, ForceMode.Acceleration);

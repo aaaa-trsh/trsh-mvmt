@@ -9,10 +9,12 @@ public class PlayerLook : MonoBehaviour
     private float yRotation = 0f;
     public float targetDutch = 0f;
     public float targetHeight = 0f;
+    private float initHeight;
     private Cinemachine.CinemachineBasicMultiChannelPerlin vCamNoise;
     
     void Start() {
         targetHeight = cameraRig.localPosition.y;
+        initHeight = targetHeight;
         vCamNoise = virtualCamera.GetCinemachineComponent<Cinemachine.CinemachineBasicMultiChannelPerlin>();
     }
 
@@ -47,6 +49,10 @@ public class PlayerLook : MonoBehaviour
 
     public void SetTargetHeight(float height) {
         targetHeight = height;
+    }
+
+    public void SetTargetHeight() {
+        targetHeight = initHeight;
     }
 
     public void SetHorzontalRotation(float _) {
