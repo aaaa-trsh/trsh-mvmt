@@ -64,6 +64,16 @@ public class mvmt4 : MonoBehaviour
             state = new mvmt4Air(this, u, false);
     }
 
+    void OnEnable() {
+        oldWallHeight = Mathf.Infinity;
+        u = GetComponent<MovementUtils>();  
+        rb = GetComponent<Rigidbody>();
+        if (u.grounded)
+            state = new mvmt4Run(this, u);
+        else
+            state = new mvmt4Air(this, u, false);
+    }
+
     void Update() {
         state.Update();
     }
@@ -111,6 +121,8 @@ class mvmt4Run : mvmt4State {
     }
 
     public override void Start() {
+        mvmt.oldWallNormal = Vector3.zero;
+        mvmt.oldWallHeight = Mathf.Infinity;
         u.onJump += Jump;
         mvmt.GetComponent<PlayerLook>().SetTargetHeight();
     }
@@ -143,6 +155,8 @@ class mvmt4Run : mvmt4State {
                 var _accelSpeed = Mathf.Min(_accel * Time.deltaTime * speed, addSpeed);
                 rb.velocity += wish * _accelSpeed;
             }
+            Debug.Log(u.groundNormal);
+        } else {
         }
     }
 
@@ -155,7 +169,75 @@ class mvmt4Run : mvmt4State {
             return new mvmt4Air(mvmt, u, jumping);
         } else {
             if (u.crouchInput) {
-                return new mvmt4Slide(mvmt, u);
+                return rb.velocity.magnitude > mvmt.groundSettings.walkSpeed + 1 ? (mvmt4State)new mvmt4Slide(mvmt, u) : (mvmt4State)new mvmt4Sneak(mvmt, u);
+            }
+        }
+        if (jumping) {
+            rb.velocity = new Vector3(rb.velocity.x, mvmt.airSettings.jumpForce, rb.velocity.z);
+        }
+        return null;
+    }
+}
+
+
+class mvmt4Sneak : mvmt4State {
+    MovementUtils u;
+    mvmt4 mvmt;
+    Rigidbody rb;
+    bool jumping = false;
+    public mvmt4Sneak(mvmt4 mvmt, MovementUtils u) {
+        this.mvmt = mvmt;
+        this.u = u;
+        this.rb = mvmt.rb;
+    }
+
+    public override void Start() {
+        mvmt.oldWallNormal = Vector3.zero;
+        mvmt.oldWallHeight = Mathf.Infinity;
+        u.onJump += Jump;
+        mvmt.GetComponent<PlayerLook>().SetTargetHeight(mvmt.slideSettings.cameraHeight);
+    }
+    public void Jump() {
+        jumping = true;
+    }
+    public override void Update() {
+    }
+
+    public override void FixedUpdate() {
+        if (!jumping) {
+            Vector3 wish = u.transformify(u.dirInput);
+            wish = Vector3.Cross(new Vector3(wish.z, 0, -wish.x), u.groundNormal);
+            
+            // friction
+            if (rb.velocity.magnitude != 0) {
+                float drop = rb.velocity.magnitude * mvmt.groundSettings.friction * Time.deltaTime;
+                rb.velocity *= Mathf.Max(rb.velocity.magnitude - drop, 0) / rb.velocity.magnitude; 
+            }
+            
+            var curSpeed = Vector3.Dot(rb.velocity, wish);
+            var _accel = mvmt.groundSettings.acceleration;
+            
+            var speed = mvmt.groundSettings.walkSpeed/2;
+            var addSpeed = speed - curSpeed;
+            if (addSpeed > 0) {
+                var _accelSpeed = Mathf.Min(_accel * Time.deltaTime * speed, addSpeed);
+                rb.velocity += wish * _accelSpeed;
+            }
+        } else {
+        }
+    }
+
+    public override void End() {
+        u.onJump -= Jump;
+        mvmt.GetComponent<PlayerLook>().SetTargetHeight();
+    }
+
+    public override mvmt4State CheckTransition() {
+        if (!u.grounded) {
+            return new mvmt4Air(mvmt, u, jumping);
+        } else {
+            if (!u.crouchInput) {
+                return new mvmt4Run(mvmt, u);
             }
         }
         if (jumping) {
@@ -180,6 +262,8 @@ class mvmt4Slide : mvmt4State {
     }
 
     public override void Start() {
+        mvmt.oldWallNormal = Vector3.zero;
+        mvmt.oldWallHeight = Mathf.Infinity;
         u.onJump += Jump;
         mvmt.GetComponent<PlayerLook>().SetTargetHeight(mvmt.slideSettings.cameraHeight);
     }
@@ -187,7 +271,7 @@ class mvmt4Slide : mvmt4State {
     public override void Update() { slideTime += Time.deltaTime; }
     public override void FixedUpdate() {
         if (!jumping) {
-            Vector3 wish = mvmt.transform.forward;
+            Vector3 wish = dir;
             if (slideTime > 0.2f) 
                 wish = Vector3.zero;
 
@@ -203,7 +287,9 @@ class mvmt4Slide : mvmt4State {
 
             var addSpeed = speed - curSpeed;
             var _accelSpeed = Mathf.Min(_accel * Time.deltaTime * speed, addSpeed);
+            float yVel = rb.velocity.y;
             rb.velocity += wish * _accelSpeed;
+            rb.velocity = new Vector3(rb.velocity.x, yVel, rb.velocity.z);
         }
     }
 
@@ -217,6 +303,8 @@ class mvmt4Slide : mvmt4State {
         } else {
             if (!u.crouchInput) {
                 return new mvmt4Run(mvmt, u);
+            } else if (rb.velocity.magnitude < mvmt.groundSettings.walkSpeed + .2f) {
+                return new mvmt4Sneak(mvmt, u);
             }
         }
         if (jumping) {
@@ -231,14 +319,16 @@ class mvmt4Air : mvmt4State {
     mvmt4 mvmt;
     Rigidbody rb;
     bool fromJump;
+    bool fromWall;
     float airTime;
     bool jumping;
     PlayerLook look;
-    public mvmt4Air(mvmt4 mvmt, MovementUtils u, bool fromJump) {
+    public mvmt4Air(mvmt4 mvmt, MovementUtils u, bool fromJump, bool fromWall=false) {
         this.mvmt = mvmt;
         this.u = u;
         this.rb = mvmt.rb;
         this.fromJump = fromJump;
+        this.fromWall = fromWall;
         this.look = mvmt.GetComponent<PlayerLook>();
         airTime = 0;
     }
@@ -254,7 +344,6 @@ class mvmt4Air : mvmt4State {
         airTime += Time.deltaTime;
         if (airTime > mvmt.airSettings.coyoteTime && u.canJump && !u.grounded) {
             u.canJump = false;
-            // Debug.Log("OFFF!!");
         }
     }
 
@@ -276,7 +365,7 @@ class mvmt4Air : mvmt4State {
                 Vector3 transformifiedWish = u.transformify(newWish);
                 float yVel = rb.velocity.y;
                 Vector3 xz = u.xzVelocity();
-                rb.velocity = Vector3.Lerp(u.xzVelocity(), transformifiedWish * u.xzVelocity().magnitude * mvmt.airSettings.lurchVelocityGain, _lurchDirectionGain);
+                rb.velocity = Vector3.Lerp(u.xzVelocity(), transformifiedWish * u.xzVelocity().magnitude, _lurchDirectionGain).normalized * mvmt.airSettings.lurchVelocityGain * u.xzVelocity().magnitude;
                 rb.velocity += new Vector3(0, yVel, 0);
             }
         }
@@ -317,7 +406,7 @@ class mvmt4Air : mvmt4State {
             // rb.velocity = newVel;
             return new mvmt4Air(mvmt, u, jumping);
         }
-        if (u.WallCheck() && (Mathf.Abs(Vector3.Angle(u.wallHit.normal, mvmt.oldWallNormal)) > 25 || mvmt.oldWallHeight > u.wallHit.point.y) && !mvmt.wallrunTimeout) {
+        if (u.WallCheck() && (mvmt.oldWallNormal == Vector3.zero || Mathf.Abs(Vector3.Angle(u.wallHit.normal, mvmt.oldWallNormal)) > 25 || mvmt.oldWallHeight > u.wallHit.point.y) && (fromWall ? airTime > 0.3f : true)) {
             return new mvmt4Wallrun(mvmt, u);
         }
         return null;
@@ -344,31 +433,40 @@ class mvmt4Wallrun : mvmt4State {
     public override void Start() {
         u.onJump += Jump;
         wallrunSpeed = u.xzVelocity().magnitude;
-        rb.velocity = new Vector3(rb.velocity.x, rb.velocity.y/2, rb.velocity.z);
-        u.JumpReset();
     }
     public void Jump() {
         jumping = true;
     }
 
     public override void Update() {
-        wallTime += Time.deltaTime;
+        if (onWall) {
+            wallTime += Time.deltaTime;
+        }
         u.JumpReset();
     }
 
     public override void FixedUpdate() {
         if (!jumping) {
             var prevOnWall = onWall;
-            onWall = Vector3.Distance(u.wallHit.point, u.transform.position) < u.capsuleCollider.radius + 0.1f;
+            RaycastHit hit;
+            Physics.Raycast(mvmt.transform.position, -u.wallHit.normal, out hit, 3f, u.whatIsGround);
+            onWall = hit.collider != null && Vector3.Distance(hit.point, u.transform.position) < u.capsuleCollider.radius + 0.02f;
+            // onWall = Vector3.Distance(u.wallHit.point, u.transform.position) < u.capsuleCollider.radius + 0.02f;
             Vector3 wallDir = Vector3.Cross(u.wallHit.normal, Vector3.up);
             Vector3 smoothWish = u.transformify(u.smoothDirInput);
             Vector3 wallSpaceWish = new Vector3(Vector3.Dot(smoothWish, wallDir), 0, Vector3.Dot(smoothWish, u.wallHit.normal));
-            Vector3 stickVelocity = (-u.wallHit.normal * 300 * Time.fixedDeltaTime * Vector3.Distance(mvmt.transform.position-(u.wallHit.normal*u.capsuleCollider.radius), u.wallHit.point));
-            Vector3 wallrunVelocity = wallDir * wallSpaceWish.x * Mathf.Lerp(wallrunSpeed, 15, 5 * wallTime) + stickVelocity;
-            wallrunVelocity.y = rb.velocity.y;
-            look.SetTargetDutch(Mathf.Lerp(look.targetDutch, -15 * Mathf.Clamp01((wallDuration+.5f-wallTime)/wallDuration) * Vector3.Dot(wallDir, mvmt.transform.forward), 50*Time.deltaTime));
+            Vector3 stickVelocity = (-u.wallHit.normal * 7 * Vector3.Distance(mvmt.transform.position-(u.wallHit.normal*u.capsuleCollider.radius), u.wallHit.point));
+            Vector3 wallrunVelocity = wallDir * wallSpaceWish.x * Mathf.Lerp(wallrunSpeed, 15, 3 * wallTime) + stickVelocity;
+            wallrunVelocity.y = 0;
 
+            float targetDutch = Mathf.Lerp(look.targetDutch, -8 * Mathf.Clamp01((wallDuration+.5f-wallTime)/wallDuration) * Vector3.Dot(wallDir, mvmt.transform.forward), 50*Time.deltaTime);
+            // modulate targetDutch by distance to wall
+            targetDutch *= Mathf.Max((1-(Vector3.Distance(hit.point, mvmt.transform.position)-u.capsuleCollider.radius)), 0);
+            look.SetTargetDutch(targetDutch);
+            Debug.Log(Vector3.Distance(hit.point, mvmt.transform.position) + " " + targetDutch);
             rb.velocity = wallrunVelocity;
+            if (!onWall)
+                rb.velocity += stickVelocity;
             rb.AddForce(-Vector3.up * 300 * Time.deltaTime, ForceMode.Acceleration);
         }
     }
@@ -377,33 +475,43 @@ class mvmt4Wallrun : mvmt4State {
         u.onJump -= Jump;
         mvmt.oldWallNormal = u.wallHit.normal;
         mvmt.oldWallHeight = mvmt.transform.position.y;
-        MovementUtils.OnEnterGround resetWall = () => {
+        MovementUtils.OnJump resetWall = () => {
             mvmt.oldWallNormal = Vector3.zero;
             mvmt.oldWallHeight = Mathf.Infinity;
-            Debug.Log("wall reset");
         };
-        u.onEnterGround += resetWall;
-        u.onEnterGround += () => {
-            u.onEnterGround -= resetWall;
+        u.onJump += resetWall;
+        u.onJump += () => {
+            u.onJump -= resetWall;
         };
         look.SetTargetDutch(0);    
-        mvmt.WallrunTimeout();    
+        // mvmt.WallrunTimeout();    
     }
 
     public override mvmt4State CheckTransition() {
+        if (u.grounded) {
+            return u.crouchInput ? (mvmt4State)new mvmt4Slide(mvmt, u) : (mvmt4State)new mvmt4Run(mvmt, u);
+        }
         if (jumping) {
             Vector3 wallDir = Vector3.Cross(u.wallHit.normal, Vector3.up);
             float wallSide = Vector3.Dot(wallDir, (mvmt.transform.forward * Mathf.Sign(u.signedDirInput.y) + mvmt.transform.right * u.signedDirInput.x).normalized);
-            Vector3 newVel = wallDir.normalized * Mathf.Lerp(wallrunSpeed, 15, 5 * wallTime) * Mathf.Sign(wallSide) + u.wallHit.normal * 8;
-
+            Vector3 newVel = wallDir.normalized * Mathf.Lerp(wallrunSpeed, 15, 3 * wallTime) * Mathf.Sign(wallSide) * Mathf.Abs(u.dirInput.y) * (wallTime == 0 ? 1 : Mathf.Lerp(1.3f, 1, 12 * wallTime)) + u.wallHit.normal * 8;
+            Debug.Log("wallkick boost: " + (wallTime == 0 ? 1 : Mathf.Lerp(1.3f, 1, 12 * wallTime)));
             if (Vector3.Dot(u.wallHit.normal, mvmt.transform.forward) < -0.7f)
                 newVel = u.wallHit.normal * 4f;
             newVel.y = mvmt.airSettings.jumpForce;
             rb.velocity = newVel;
-            return new mvmt4Air(mvmt, u, jumping);
+            return new mvmt4Air(mvmt, u, jumping, true);
+        } else {
+            if (!Physics.Raycast(mvmt.transform.position, -u.wallHit.normal, u.capsuleCollider.radius + 0.5f, u.whatIsGround)) {
+                Debug.Log("out of wall");
+                return new mvmt4Air(mvmt, u, false);
+            }
         }
-        if (!Physics.Raycast(mvmt.transform.position, -u.wallHit.normal, u.capsuleCollider.radius + 0.1f, u.whatIsGround) && !u.WallCheck()) {
-            return new mvmt4Air(mvmt, u, false);
+
+        
+        if (wallTime > 1.75f || Input.GetKey(KeyCode.LeftControl)) {
+            rb.velocity += u.wallHit.normal * 4;
+            return new mvmt4Air(mvmt, u, jumping, true);
         }
         return null;
     }

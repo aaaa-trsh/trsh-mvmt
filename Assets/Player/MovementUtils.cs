@@ -98,8 +98,8 @@ public class MovementUtils : MonoBehaviour
         Vector3 right = Vector3.Cross(Vector3.up, rb.velocity.normalized);
         bool retval = //Physics.Raycast(transform.position, right, out wallHit, capsuleCollider.radius + 0.4f) 
                     //|| Physics.Raycast(transform.position, -right, out wallHit, capsuleCollider.radius + 0.4f)
-                    Physics.Raycast(transform.position, transform.right, out wallHit, capsuleCollider.radius + 0.4f) 
-                    || Physics.Raycast(transform.position, -transform.right, out wallHit, capsuleCollider.radius + 0.4f);
+                    Physics.Raycast(transform.position, transform.right, out wallHit, capsuleCollider.radius + .6f) 
+                    || Physics.Raycast(transform.position, -transform.right, out wallHit, capsuleCollider.radius + .6f);
         if (retval) 
             wallNormal = wallHit.normal;
         else
@@ -121,7 +121,6 @@ public class MovementUtils : MonoBehaviour
 			groundNormal = Vector3.up;
 		}
         groundContactCount = 0;
-		groundNormal = Vector3.zero;
     }
     void OnCollisionEnter(Collision collision) {
         if (!grounded && whatIsGround.value == (whatIsGround.value | (1 << collision.gameObject.layer))) {
@@ -143,13 +142,15 @@ public class MovementUtils : MonoBehaviour
     }
     void EvaluateCollision(Collision collision) {
         // get flattest normal
+        Vector3 _groundNormal = Vector3.up;
         for (int i = 0; i < collision.contactCount; i++) {
 			Vector3 normal = collision.GetContact(i).normal;
 			if (normal.y >= minGroundDotProduct) {
 				groundContactCount += 1;
-				groundNormal += normal;
+				_groundNormal += normal;
 			}
 		}
+        groundNormal = _groundNormal.normalized;
     }
 
     public void JumpReset() {

@@ -94,7 +94,7 @@ public class mvmt3 : MonoBehaviour
             }
             wallData = new Tuple<Vector3, Vector3>(u.wallHit.normal, u.wallHit.point);
         }
-        return wallrunningTime > wallrunningDuration || Input.GetKey(KeyCode.LeftControl) || eject || u.smoothDirInput.magnitude < 0.1f;
+        return wallrunningTime > wallrunningDuration || Input.GetKey(KeyCode.LeftControl) || eject || u.smoothDirInput.magnitude < 0.1f || !Physics.Raycast(transform.position, -u.wallHit.normal, u.capsuleCollider.radius + 0.1f, u.whatIsGround);
     }
     void WallrunExit() {
         canWallrun = false;
