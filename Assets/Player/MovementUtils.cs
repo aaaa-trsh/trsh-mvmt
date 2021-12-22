@@ -33,6 +33,8 @@ public class MovementUtils : MonoBehaviour
     public OnJump onJump;
     public delegate void OnCrouchInput();
     public OnCrouchInput onCrouchInput;
+    public delegate void OnReset();
+    public OnReset onReset;
 
     private Rigidbody rb;
     public CapsuleCollider capsuleCollider { get; private set; }
@@ -79,15 +81,19 @@ public class MovementUtils : MonoBehaviour
             rb.velocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
             transform.position = new Vector3(0, 5f, 0);
+            transform.rotation = Quaternion.Euler(0, 268, 0);
             GetComponent<PlayerLook>().SetHorzontalRotation(271.278f);
+            onReset?.Invoke();
         }
     }
-
+    public int collisionCount;
     public RaycastHit wallHit;
     public bool WallCheck() {
         Vector3 right = Vector3.Cross(Vector3.up, rb.velocity.normalized);
-        bool retval = Physics.Raycast(transform.position, right, out wallHit, capsuleCollider.radius + 0.4f) 
-                    || Physics.Raycast(transform.position, -right, out wallHit, capsuleCollider.radius + 0.4f);
+        bool retval = //Physics.Raycast(transform.position, right, out wallHit, capsuleCollider.radius + 0.4f) 
+                    //|| Physics.Raycast(transform.position, -right, out wallHit, capsuleCollider.radius + 0.4f)
+                    Physics.Raycast(transform.position, transform.right, out wallHit, capsuleCollider.radius + 0.4f) 
+                    || Physics.Raycast(transform.position, -transform.right, out wallHit, capsuleCollider.radius + 0.4f);
         if (retval) 
             wallNormal = wallHit.normal;
         else
@@ -98,6 +104,7 @@ public class MovementUtils : MonoBehaviour
 
     public int groundColliders { get; private set; }
     void OnCollisionEnter(Collision collision) {
+        collisionCount++;
         // if (whatIsGround.value == (whatIsGround.value | (1 << collision.gameObject.layer)))
         //     groundColliders += 1;
         // contacts.Add(collision.contacts[0]);
@@ -116,6 +123,7 @@ public class MovementUtils : MonoBehaviour
     }
 
     void OnCollisionExit(Collision collision) {
+        collisionCount--;
         if (whatIsGround.value == (whatIsGround.value | (1 << collision.gameObject.layer))) {
             grounded = false;
             groundNormal = Vector3.zero;
@@ -132,5 +140,6 @@ public class MovementUtils : MonoBehaviour
     }
 
     public Vector3 xzVelocity() { return Vector3.Scale(rb.velocity, new Vector3(1, 0, 1)); }
+    public Vector3 transformify(Vector2 dir) { return transform.TransformDirection(new Vector3(dir.x, 0, dir.y)); }
 
 }
