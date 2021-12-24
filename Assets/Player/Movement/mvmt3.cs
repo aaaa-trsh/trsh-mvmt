@@ -211,7 +211,7 @@ public class mvmt3 : MonoBehaviour {
             
             float walkAccel = accel;
             if (u.crouchInput) {
-                if (u.xzVelocity().magnitude > 8f || slideQueued) {
+                if (rb.velocity.magnitude > 8f || slideQueued) {
                     if (slideQueued) {
                         slideQueued = false;
                         slideTime = 0f;
@@ -228,7 +228,7 @@ public class mvmt3 : MonoBehaviour {
             }
 
             if (rb.velocity.magnitude != 0f) {
-                float drop = rb.velocity.magnitude * (u.crouchInput && u.xzVelocity().magnitude > 8f ? 0.2f : friction) * Time.deltaTime;
+                float drop = rb.velocity.magnitude * (u.crouchInput && rb.velocity.magnitude > 8f ? 0.2f : friction) * Time.deltaTime;
                 rb.velocity *= Mathf.Max(rb.velocity.magnitude - drop, 0f) / rb.velocity.magnitude;
             }
             float curSpeed = Vector3.Dot(rb.velocity, wish);
