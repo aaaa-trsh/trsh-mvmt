@@ -92,8 +92,9 @@ public class MovementUtils : MonoBehaviour
         Vector3 right = Vector3.Cross(Vector3.up, rb.velocity.normalized);
         bool retval = //Physics.Raycast(transform.position, right, out wallHit, capsuleCollider.radius + 0.4f) 
                     //|| Physics.Raycast(transform.position, -right, out wallHit, capsuleCollider.radius + 0.4f)
-                    Physics.Raycast(transform.position, transform.right, out wallHit, capsuleCollider.radius + 0.4f) 
-                    || Physics.Raycast(transform.position, -transform.right, out wallHit, capsuleCollider.radius + 0.4f);
+                    Physics.Raycast(transform.position - Vector3.up*.9f, transform.forward, out wallHit, capsuleCollider.radius + 0.4f, whatIsGround) 
+                    || Physics.Raycast(transform.position, transform.right, out wallHit, capsuleCollider.radius + 0.4f, whatIsGround) 
+                    || Physics.Raycast(transform.position, -transform.right, out wallHit, capsuleCollider.radius + 0.4f, whatIsGround);
         if (retval) 
             wallNormal = wallHit.normal;
         else
